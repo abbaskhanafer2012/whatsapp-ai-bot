@@ -14,18 +14,20 @@ app.get("/", (req, res) => {
 // ⭐⭐ هذا أهم جزء ⭐⭐
 // Meta سيستدعيه عند Verify
 app.get("/webhook", (req, res) => {
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+  console.log("MODE:", mode);
+  console.log("TOKEN FROM META:", token);
+  console.log("MY TOKEN:", process.env.VERIFY_TOKEN);
+
+  if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
     console.log("WEBHOOK VERIFIED");
-    res.status(200).send(challenge); // أهم سطر
-  } else {
-    res.sendStatus(403);
+    return res.status(200).send(challenge);
   }
+
+  return res.sendStatus(403);
 });
 
 // استقبال الرسائل
