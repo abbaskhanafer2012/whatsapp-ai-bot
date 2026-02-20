@@ -1,83 +1,39 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const axios = require("axios");
+import express from "express";
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
-const VERIFY_TOKEN = "verify_token_123";
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
-// Webhook verification
+// اختبار أن السيرفر يعمل
+app.get("/", (req, res) => {
+  res.send("WhatsApp AI Bot Running");
+});
+
+
+// ⭐⭐ هذا أهم جزء ⭐⭐
+// Meta سيستدعيه عند Verify
 app.get("/webhook", (req, res) => {
-  const verify_token = process.env.VERIFY_TOKEN;
 
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === verify_token) {
-    console.log("WEBHOOK VERIFIED");
-    res.status(200).send(challenge);
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("Webhook verified!");
+    return res.status(200).send(challenge); // لازم يرجع الرقم فقط
   } else {
-    res.sendStatus(403);
+    return res.sendStatus(403);
   }
 });
 
-// Receive messages
-app.post("/webhook", async (req, res) => {
-    try {
-        const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-        if (!message) return res.sendStatus(200);
 
-        const from = message.from;
-        const text = message.text?.body;
-
-        if (!text) return res.sendStatus(200);
-
-        // Send to OpenAI
-        const ai = await axios.post(
-            "https://api.openai.com/v1/chat/completions",
-            {
-                model: "gpt-4o-mini",
-                messages: [
-                    { role: "system", content: "You are a professional sales assistant for a construction company. Answer customers politely and helpfully." },
-                    { role: "user", content: text }
-                ]
-            },
-            {
-                headers: {
-                    "Authorization": `Bearer ${OPENAI_API_KEY}`,
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-
-        const reply = ai.data.choices[0].message.content;
-
-        // Send reply to WhatsApp
-        await axios.post(
-            `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
-            {
-                messaging_product: "whatsapp",
-                to: from,
-                text: { body: reply }
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-
-        res.sendStatus(200);
-    } catch (e) {
-        console.log(e.response?.data || e.message);
-        res.sendStatus(500);
-    }
+// استقبال الرسائل
+app.post("/webhook", (req, res) => {
+  console.log("MESSAGE RECEIVED:");
+  console.log(JSON.stringify(req.body, null, 2));
+  res.sendStatus(200);
 });
 
-app.listen(3000, () => console.log("Server running"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server started on port " + PORT));
